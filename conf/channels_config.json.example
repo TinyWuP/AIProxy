@@ -7,7 +7,7 @@
       "websocket_url": "wss://dashscope.aliyuncs.com",
       "host": "dashscope.aliyuncs.com",
       "path_rewrite": {
-        "/chat/completions": "/compatible-mode/v1/chat/completions"
+        "/v1/chat/completions": "/compatible-mode/v1/chat/completions"
       },
       "websocket_endpoints": {
         "/v1/realtime": "/v1/realtime"

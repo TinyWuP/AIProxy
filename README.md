@@ -29,7 +29,7 @@ AIProxy/
 │   ├── channels_config.json # 渠道配置
 │   ├── api_keys.json       # API Key配置
 │   ├── init.lua            # 初始化模块
-│   ├── enhanced_api_key_replace.lua # 增强版API Key替换模块
+│   ├── enhanced_process.lua # 核心请求处理模块
 │   ├── record_stats.lua    # 统计记录模块
 │   ├── stats_page.lua      # JSON统计API
 │   └── stats_dashboard.lua # HTML仪表板
@@ -39,11 +39,14 @@ AIProxy/
 ├── start.sh               # 启动脚本
 ├── stop.sh                # 停止脚本
 └── restart.sh             # 重启脚本
+└── docker-compose.yml     # Docker Compose配置文件
 ```
 
 ## 快速开始
 
-### 1. 配置设置
+### 本地部署方式
+
+#### 1. 配置设置
 
 首次使用需要设置配置文件：
 
@@ -59,7 +62,7 @@ vim conf/api_keys.json
 
 **重要**: 请参考 [配置指南](docs/配置指南.md) 获取详细的配置说明。
 
-### 2. 启动服务
+#### 2. 启动服务
 
 ```bash
 # 启动服务
@@ -72,12 +75,51 @@ vim conf/api_keys.json
 ./stop.sh
 ```
 
-### 3. 访问统计页面
+### Docker部署方式
+
+#### 1. 前提条件
+
+- 安装 [Docker](https://docs.docker.com/get-docker/)
+- 安装 [Docker Compose](https://docs.docker.com/compose/install/)
+
+#### 2. 配置设置
+
+与本地部署相同，首次使用需要设置配置文件：
+
+```bash
+# 复制配置模板
+cp conf/channels_config.json.example conf/channels_config.json
+cp conf/api_keys.json.example conf/api_keys.json
+
+# 编辑配置文件，填入真实的API密钥
+vim conf/channels_config.json
+vim conf/api_keys.json
+```
+
+#### 3. 启动服务
+
+使用Docker Compose启动服务：
+
+```bash
+# 启动服务
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
+```
+
+### 4. 访问服务
+
+服务启动后，可通过以下地址访问：
 
 - **JSON API**: http://localhost:8001/stats
 - **HTML仪表板**: http://localhost:8001/dashboard
+- **API代理**: http://localhost:8001/...
 
-### 4. 使用API代理
+## API使用示例
 
 ```bash
 # 使用百炼渠道
@@ -89,7 +131,7 @@ curl -X POST http://localhost:8001/chat/completions \
 # 使用Gemini渠道
 curl -X POST http://localhost:8001/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk-bailian-tester-003" \
+  -H "Authorization: Bearer sk-gemini-tester-001" \
   -d '{"model":"gemini-pro","messages":[{"role":"user","content":"Hello"}]}'
 ```
 
@@ -102,12 +144,14 @@ curl -X POST http://localhost:8001/chat/completions \
   "channels": {
     "bailian": {
       "name": "阿里云百炼",
-      "api_url": "https://dashscope.aliyuncs.com",
+      "api_key": "sk_aliyun_xxx",
+      "base_url": "https://dashscope.aliyuncs.com",
       "status": "active"
     },
     "gemini": {
       "name": "Google Gemini",
-      "api_url": "https://generativelanguage.googleapis.com",
+      "api_key": "AIzaSyA-your-real-gemini-key-here",
+      "base_url": "https://generativelanguage.googleapis.com",
       "status": "active"
     }
   }
@@ -156,7 +200,7 @@ curl -X POST http://localhost:8001/chat/completions \
 
 1. 在 `channels_config.json` 中添加渠道配置
 2. 在 `api_keys.json` 中添加对应的API Key
-3. 如需特殊处理，修改 `enhanced_api_key_replace.lua`
+3. 如需特殊处理，修改 `enhanced_process.lua`
 
 ### 自定义统计
 
@@ -175,6 +219,7 @@ python -m pytest integration/ -v
 - OpenResty 1.19+
 - Lua 5.1+
 - macOS/Linux
+- Docker & Docker Compose (如使用容器部署)
 
 ## 许可证
 

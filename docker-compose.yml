@@ -1,0 +1,17 @@
+services:
+  openresty:
+    image: docker.m.daocloud.io/openresty/openresty:1.27.1.2-bookworm-fat
+    restart: always
+    #command: ["/usr/bin/openresty", "-c", "/etc/nginx/nginx.conf", "-p", "/etc/nginx/",  "-g", "daemon off;"]
+    environment:
+      - TZ=Asia/Shanghai
+    volumes: 
+      - "./conf/:/usr/local/openresty/nginx/conf/"
+      - "./logs/:/usr/local/openresty/nginx/logs/"
+    ports: 
+      - "8001:8001"
+    networks:
+      - appnet
+
+networks:
+  appnet:

@@ -31,6 +31,8 @@ Thumbs.db
 
 # IDE文件
 .vscode/
+.kiro/
+.specstory/
 .idea/
 *.swp
 *.swo
@@ -45,6 +47,7 @@ Thumbs.db
 node_modules/
 venv/
 env/
+.venv/
 
 # 构建输出
 dist/
@@ -75,3 +78,7 @@ conf/api_keys.json
 # 环境变量文件
 .env*
 !.env.example 
+
+#测试
+test
+test*/
