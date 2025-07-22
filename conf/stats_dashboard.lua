@@ -5,7 +5,7 @@ local cjson = require "cjson"
 
 -- 加载渠道配置
 local function load_channels_config()
-    local file = io.open("conf/channels_config.json", "r")
+    local file = _G.open_config_file("conf/channels_config.json")
     if not file then
         ngx.log(ngx.ERR, "无法打开渠道配置文件")
         return nil

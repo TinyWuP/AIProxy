@@ -7,10 +7,14 @@
       "websocket_url": "wss://dashscope.aliyuncs.com",
       "host": "dashscope.aliyuncs.com",
       "path_rewrite": {
-        "/v1/chat/completions": "/compatible-mode/v1/chat/completions"
+        "/chat/completions": "/compatible-mode/v1/chat/completions",
+        "/v1/chat/completions": "/compatible-mode/v1/chat/completions",
+        "/v1/embeddings": "/compatible-mode/v1/embeddings",
+        "/v1/images/generations": "/api/v1/services/aigc/text2image/image-synthesis"
       },
       "websocket_endpoints": {
-        "/v1/realtime": "/v1/realtime"
+        "/v1/realtime": "/v1/realtime",
+        "/api-ws/v1/inference": "/api-ws/v1/inference"
       },
       "supports_websocket": true,
       "timeout": 30,

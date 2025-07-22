@@ -1,13 +1,3 @@
-# 日志文件
-logs/
-*.log
-
-# OpenResty临时目录
-client_body_temp/
-fastcgi_temp/
-proxy_temp/
-scgi_temp/
-uwsgi_temp/
 
 # 进程ID文件
 *.pid
@@ -37,6 +27,7 @@ Thumbs.db
 *.swp
 *.swo
 *~
+.claude/
 
 # 环境配置文件
 .env
@@ -71,9 +62,7 @@ openresty-*/
 # 本地配置文件备份
 *.backup
 
-# 包含敏感信息的配置文件
-conf/channels_config.json
-conf/api_keys.json
+
 
 # 环境变量文件
 .env*
@@ -82,3 +71,20 @@ conf/api_keys.json
 #测试
 test
 test*/
+test/.env
+
+# 包含敏感信息的配置文件
+conf/api_keys.json
+conf/channels_config.json
+conf/bwton.cn.pem
+conf/bwton.cn.key
+
+
+# OpenResty相关时目录
+client_body_temp/
+fastcgi_temp/
+proxy_temp/
+scgi_temp/
+uwsgi_temp/
+logs/
+*.log

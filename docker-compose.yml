@@ -9,7 +9,7 @@ services:
       - "./conf/:/usr/local/openresty/nginx/conf/"
       - "./logs/:/usr/local/openresty/nginx/logs/"
     ports: 
-      - "8001:8001"
+      - "443:443"
     networks:
       - appnet
 
