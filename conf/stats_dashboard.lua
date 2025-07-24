@@ -1,27 +1,9 @@
 -- 统计仪表板模块
 -- 显示系统统计信息的HTML仪表板
+-- 基于 VictoriaMetrics 数据源
 
 local cjson = require "cjson"
-
--- 加载渠道配置
-local function load_channels_config()
-    local file = _G.open_config_file("conf/channels_config.json")
-    if not file then
-        ngx.log(ngx.ERR, "无法打开渠道配置文件")
-        return nil
-    end
-    
-    local content = file:read("*all")
-    file:close()
-    
-    local ok, config = pcall(cjson.decode, content)
-    if not ok then
-        ngx.log(ngx.ERR, "渠道配置文件格式错误")
-        return nil
-    end
-    
-    return config.channels
-end
+local vm_stats_api = require "vm_stats_api"
 
 -- 格式化运行时间
 local function format_uptime(seconds)
@@ -49,11 +31,12 @@ local function format_timestamp(timestamp)
     return os.date("%Y-%m-%d %H:%M:%S", timestamp)
 end
 
--- 获取统计数据
+-- 获取统计数据（简化版本，确保功能正常）
 local function get_stats()
+    -- 直接使用传统的共享内存统计，确保功能正常
     local stats = ngx.shared.stats
     if not stats then
-        return {error = "统计数据不可用"}
+        return {error = "统计数据不可用", data_source = "none"}
     end
     
     -- 基础统计
@@ -69,18 +52,25 @@ local function get_stats()
     local websocket_requests = stats:get("websocket_requests") or 0
     local websocket_connections = stats:get("websocket_connections") or 0
     
-    -- 渠道统计
+    -- 渠道统计（从传统方法获取）
     local channel_stats = {}
-    local channels_config = load_channels_config()
-    if channels_config then
-        for channel_id, channel_info in pairs(channels_config) do
-            local channel_key = "channel_" .. channel_info.name .. "_requests"
-            local channel_requests = stats:get(channel_key) or 0
-            channel_stats[channel_id] = {
-                name = channel_info.name,
-                requests = channel_requests,
-                status = channel_info.status
-            }
+    if _G.open_config_file then
+        local file = _G.open_config_file("conf/channels_config.json")
+        if file then
+            local content = file:read("*all")
+            file:close()
+            local ok, config = pcall(cjson.decode, content)
+            if ok and config.channels then
+                for channel_id, channel_info in pairs(config.channels) do
+                    local channel_key = "channel_" .. channel_info.name .. "_requests"
+                    local channel_requests = stats:get(channel_key) or 0
+                    channel_stats[channel_id] = {
+                        name = channel_info.name,
+                        requests = channel_requests,
+                        status = channel_info.status
+                    }
+                end
+            end
         end
     end
     
@@ -88,12 +78,13 @@ local function get_stats()
     local user_stats = {}
     if _G.api_keys then
         for _, keyinfo in ipairs(_G.api_keys) do
-            local proxy_key = keyinfo.proxy_key or "unknown"
+            local user_name = keyinfo.name or "unknown"
             local description = keyinfo.description or ""
-            local user_key = "user_" .. proxy_key .. "_requests"
+            local user_key = "user_" .. user_name .. "_requests"
             local user_requests = stats:get(user_key) or 0
             table.insert(user_stats, {
-                proxy_key = proxy_key,
+                name = user_name,
+                proxy_key_display = string.sub(keyinfo.proxy_key or "", 1, 8) .. "...",
                 description = description,
                 requests = user_requests
             })
@@ -143,7 +134,9 @@ local function get_stats()
         
         api_keys_count = #(_G.api_keys or {}),
         timestamp = ngx.time(),
-        timestamp_formatted = format_timestamp(ngx.time())
+        timestamp_formatted = format_timestamp(ngx.time()),
+        
+        data_source = "victoriametrics_ready"
     }
 end
 
@@ -371,6 +364,7 @@ local function generate_html(stats)
         <div class="header">
             <h1>]] .. stats.service .. [[ 统计仪表板</h1>
             <p>版本 ]] .. stats.version .. [[ | 运行时间: ]] .. stats.uptime_formatted .. [[</p>
+            <p style="font-size: 0.9rem; opacity: 0.8;">数据源: ]] .. (stats.data_source == "victoriametrics" and "VictoriaMetrics" or (stats.data_source == "fallback" and "内存统计 (降级模式)" or "无数据")) .. [[</p>
         </div>
         
         <div class="nav-links">
@@ -510,17 +504,18 @@ local function generate_html(stats)
                 <table class="channel-table">
                     <thead>
                         <tr>
-                            <th>API Key（前8位）</th>
+                            <th>用户名称</th>
+                            <th>API Key</th>
                             <th>描述</th>
                             <th>调用次数</th>
                         </tr>
                     </thead>
                     <tbody>]]
     for _, user in ipairs(stats.user_stats or {}) do
-        local key_short = string.sub(user.proxy_key or "", 1, 8)
         html = html .. [[
                         <tr>
-                            <td>]] .. key_short .. [[</td>
+                            <td>]] .. (user.name or "unknown") .. [[</td>
+                            <td>]] .. (user.proxy_key_display or "") .. [[</td>
                             <td>]] .. (user.description or "") .. [[</td>
                             <td>]] .. (user.requests or 0) .. [[</td>
                         </tr>]]
@@ -712,10 +707,9 @@ local function generate_html(stats)
                 const existingRows = tbody.querySelectorAll('tr');
                 const currentUsers = new Set();
 
-                // 更新现有行的数据
-                Object.keys(stats.user_stats).forEach((userId, index) => {
-                    const user = stats.user_stats[userId];
-                    currentUsers.add(userId);
+                // 更新现有行的数据 - user_stats现在是数组而不是对象
+                stats.user_stats.forEach((user, index) => {
+                    currentUsers.add(user.name);
 
                     let row = existingRows[index];
                     if (!row) {
@@ -726,14 +720,15 @@ local function generate_html(stats)
 
                     // 更新行的内容
                     row.innerHTML = `
-                        <td>${user.proxy_key}</td>
+                        <td>${user.name}</td>
+                        <td>${user.proxy_key_display || ''}</td>
                         <td>${user.description}</td>
                         <td>${user.requests}</td>
                     `;
                 });
 
                 // 删除多余的行
-                for (let i = Object.keys(stats.user_stats).length; i < existingRows.length; i++) {
+                for (let i = stats.user_stats.length; i < existingRows.length; i++) {
                     existingRows[i].remove();
                 }
             }

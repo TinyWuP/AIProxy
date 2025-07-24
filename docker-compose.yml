@@ -7,11 +7,80 @@ services:
       - TZ=Asia/Shanghai
     volumes: 
       - "./conf/:/usr/local/openresty/nginx/conf/"
-      - "./logs/:/usr/local/openresty/nginx/logs/"
+      - "./data/openresty/logs/:/usr/local/openresty/nginx/logs/"
     ports: 
       - "443:443"
     networks:
       - appnet
+    depends_on:
+      - victoriametrics
+
+  clickhouse:
+    image: docker.m.daocloud.io/clickhouse/clickhouse-server:23.4
+    restart: always
+    volumes:
+      - ./data/clickhouse/logs:/var/log/clickhouse-server
+      - ./data/clickhouse/data:/var/lib/clickhouse
+      - ./data/clickhouse/etc/clickhouse-server/config.d/config.xml:/etc/clickhouse-server/config.d/config.xml
+      - ./data/clickhouse/etc/clickhouse-server/users.d/users.xml:/etc/clickhouse-server/users.d/users.xml
+      - /usr/share/zoneinfo/PRC:/etc/localtime
+    #ports:
+    #  - 8123:8123
+    #  - 9000:9000
+    networks:
+      - appnet
+      
+  vector:
+    image: docker.m.daocloud.io/timberio/vector:0.41.1-alpine
+    restart: always
+    entrypoint: vector --config-dir /etc/vector/conf 
+    #ports:
+    #  - 8686:8686
+    volumes:
+      - ./data/openresty/logs/:/nginx_logs  # 这是需要采集的日志的路径需要挂载到容器内
+      - ./data/vector/logs/access_vector_error.log:/tmp/access_vector_error.log
+      - ./data/vector/etc/GeoLite2-City.mmdb:/etc/vector/GeoLite2-City.mmdb
+      - ./data/vector/etc/conf:/etc/vector/conf
+      - /usr/share/zoneinfo/PRC:/etc/localtime
+    networks:
+      - appnet
+
+  victoriametrics:
+    image: docker.m.daocloud.io/victoriametrics/victoria-metrics:latest
+    restart: always
+    command:
+      - '--storageDataPath=/data'
+      - '--retentionPeriod=12'
+      - '--httpListenAddr=:8428'
+      - '--maxConcurrentInserts=8'
+      - '--maxInsertRequestSize=32MB'
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - "./data/victoriametrics/data:/data"
+    #ports:
+    #  - "8428:8428"
+    networks:
+      - appnet
+
+  grafana:
+    image: docker.m.daocloud.io/grafana/grafana:latest
+    restart: always
+    environment:
+      - TZ=Asia/Shanghai
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - "./data/grafana/data:/var/lib/grafana"
+      - "./data/grafana/etc:/etc/grafana/"
+    #ports:
+    #  - "3000:3000"
+    networks:
+      - appnet
+    depends_on:
+      - victoriametrics
 
 networks:
   appnet:

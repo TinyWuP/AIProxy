@@ -88,3 +88,6 @@ scgi_temp/
 uwsgi_temp/
 logs/
 *.log
+
+# Docker 
+data/

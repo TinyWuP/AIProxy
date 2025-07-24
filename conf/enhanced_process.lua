@@ -218,9 +218,6 @@ local function enhanced_process()
     
     ngx.log(ngx.INFO, "找到用户信息: " .. (user_info.user or "unknown") .. ", 渠道: " .. (user_info.channel or "unknown"))
     
-    -- 将Proxy-Key存入ngx.ctx，供后续统计使用
-    ngx.ctx.proxy_key = proxy_key
-
     -- 获取用户指定的渠道配置
     local channel_config = get_channel_config(user_info.channel, channels)
     if not channel_config then
@@ -232,6 +229,23 @@ local function enhanced_process()
     end
     
     ngx.log(ngx.INFO, "使用渠道: " .. (channel_config.name or "unknown"))
+    
+    -- 将关键信息存入ngx.ctx，供后续统计使用
+    ngx.ctx.proxy_key = proxy_key
+    ngx.ctx.is_websocket = is_websocket
+    ngx.ctx.channel_name = channel_config.name or "unknown"
+    
+    -- 尝试从请求体中提取模型名称
+    local model_name = "unknown"
+    ngx.req.read_body()
+    local body_data = ngx.req.get_body_data()
+    if body_data then
+        local ok, body_json = pcall(cjson.decode, body_data)
+        if ok and body_json and body_json.model then
+            model_name = body_json.model
+        end
+    end
+    ngx.ctx.model_name = model_name
     
     -- 使用渠道的真实API-KEY替换Authorization头
     ngx.req.set_header("Authorization", "Bearer " .. channel_config.api_key)
@@ -245,6 +259,7 @@ local function enhanced_process()
             " (Proxy-Key: " .. (user_info.proxy_key or "unknown") .. ")" ..
             ", 渠道: " .. (user_info.channel or "unknown") .. 
             " (" .. (channel_config.name or "unknown") .. ")" ..
+            ", 模型: " .. model_name ..
             ", API-Key: " .. string.sub(channel_config.api_key, 1, 10) .. "...")
             
     ngx.log(ngx.INFO, "=== API Key替换处理完成 ===")
